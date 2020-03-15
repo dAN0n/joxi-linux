@@ -1,88 +1,94 @@
 #!/bin/bash
 # Set API Key here
-PUUSH_API_KEY=""
+JOXI_API_KEY=""
 
-# Puush for Ubuntu/linux
-# Owner : Sunmock Yang
-# www.sunmock.com
-# May 2014
+# Joxi for Ubuntu/linux
+# Owner : Zobkov Dmitry
+# (fork of Puush for Ubuntu/Linux)
+# (Original owner : Sunmock Yang)
+# March 2020
 #
 # Dependencies:
-# - gnome-screenshot
+# - scrot
 # - curl
-# - zenity
 # - xclip
 # - notify-send
 #
 # Licence : Beerware
 #
 # Instructions:
-# - Add your puush API key to PUUSH_API_KEY (You can find your API key at http://puush.me/account/settings)
+# - Add your joxi API key to JOXI_API_KEY (You can find your API key at 'access_token' field in response from joxi chrome plugin login)
 # - Place this file wherever you want (/usr/local/bin)
 # - Set up keyboard shortcuts within linux (in Ubuntu it's system settings > keyboard > keyboard shortcuts > custom shortcuts)
 #
 # 		command			description		(recommended keyboard shortcut)
 #		---------------------------------------------------------------
-#		puush -c		puush window	(Ctrl + Shift + 2/@)
-#		puush -a		puush desktop	(Ctrl + Shift + 3/#)
-#		puush -b		area puush		(Ctrl + Shift + 4/$)
-#		puush -d		file upload		(Ctrl + Shift + U)
-#		puush -e		puush clipboard	(Ctrl + Shift + 1/!)
+#		joxi -w			capture window	(Ctrl + Shift + 2/@)
+#		joxi -f			capture desktop	(Ctrl + Shift + 3/#)
+#		joxi -a			area capture	(Ctrl + Shift + 4/$)
 #
 #
 # Notes:
 # - Link(s) will be copied into clipboard and appear in notifications
-# - puush curl upload code borrowed from online sources
+# - joxi curl upload code was reverse engineered
 
-# Usage: puushFile [fileName]
-function puushFile ()
+# Usage: joxiFile [fileName]
+function joxiFile ()
 {
 	if [ -z "$1" ]; then
 		echo "No file specified"
 		exit 1
 	elif [ ! -f "$1" ]; then
-		echo "Puush cancelled"
+		echo "Joxi upload cancelled"
 		exit 1
 	fi
 
-	fileURL=`curl "https://puush.me/api/up" -# -F "k=$PUUSH_API_KEY" -F "z=waifu" -F "f=@$1" | sed -E 's/^.+,(.+),.+,.+$/\1\n/'`
+	uploadId=`curl  -# --location --request POST "https://api.joxi.net/drive/v1/files?fields=id,alternateLink,selfLink" \
+					--header "Authorization: Bearer $JOXI_API_KEY" \
+					--data-raw '{"description": "", "mimeType": "image/vnd.joxi.screenshot"}' \
+					| grep -oP '(?<="id":").*?[^\\\](?=",|"\})'`
 
-	if [ ! -z "$fileURL" ]; then
-		#Copy link to clipboard, show notification
-		printf $fileURL | xclip -selection "clipboard"
-		notify-send -i "$( cd "$( dirname "$0" )" && pwd )/icon.png" -t 2000 "puush complete!" "$fileURL"
+	if [ ! -z "$uploadId" ]; then
+		fileURL=`curl   -# --location --request PUT "https://api.joxi.net/upload/drive/v1/files/$uploadId?fields=id" \
+						--header "Content-Disposition: attachment; filename*=${1##*/}" \
+						--header "Authorization: Bearer $JOXI_API_KEY" \
+						--data-binary "@$1" \
+						| grep -oP '(?<="alternateLink":").*?[^\\\](?=",|"\})' \
+						| sed 's|\\\/|/|g'`
+
+		if [ ! -z "$fileURL" ]; then
+			# Copy link to clipboard, show notification
+			printf $fileURL | xclip -selection "clipboard"
+			notify-send -i "$( cd "$( dirname "$0" )" && pwd )/icon.png" -t 2000 "Upload to joxi complete!" "$fileURL"
+		fi
 	fi
 }
 
 function helpText ()
 {
-  printf "_____________ puush for linux _____________\n"
-  printf "Created by Sunmock Yang using the puush api\n"
+  printf "_____________ Joxi for linux _____________\n"
+  printf "Created by Zobkov Dmitry using the joxi api\n"
+  printf "(fork of puush for Linux by Sunmock Yang)\n"
   printf "\n"
   printf "Usage:\n"
-  printf "  puush [OPTIONS] [PATH]\n"
+  printf "  joxi [OPTIONS]\n"
   printf "\n"
   printf "OPTIONS:\n"
-  printf "  -a                 puush entire desktop\n"
-  printf "  -b                 select area to puush\n"
-  printf "  -c                 puush current window\n"
-  printf "  -d                 puush specific file (opens file dialog)\n"
-  printf "  -e                 puush clipboard contents\n"
+  printf "  --area, -a         select area to capture\n"
+  printf "  --full, -f         capture entire desktop\n"
+  printf "  --window, -w       capture current window\n"
   printf "\n"
-  printf "  --help,-h          show this page\n"
-  printf "\n"
-  printf "PATH:\n"
-  printf "  PATH               optional: path of file to puush\n"
+  printf "  --help, -h         show this page\n"
 }
 
-function generateFileName () { echo "/tmp/puush-linux ($(date +"%Y-%m-%d at %I.%M.%S")).png"; }
+function generateFileName () { echo "/tmp/joxi-linux_$(date +"%Y-%m-%dT%I-%M-%S").png"; }
 
 
-if [ -z "$PUUSH_API_KEY" ]; then
-  echo "Set the variable PUUSH_API_KEY in $0"
-  echo "You can find your API key at http://puush.me/account/settings"
+if [ -z "$JOXI_API_KEY" ]; then
+  echo "Set the variable JOXI_API_KEY in $0"
+  echo "You can find your API key at 'access_token' field in response from joxi chrome plugin login"
 
-  notify-send -i "$( cd "$( dirname "$0" )" && pwd )/icon.png" "Set the variable PUUSH_API_KEY in $0" "You can find your API key at http://puush.me/account/settings"
+  notify-send -i "$( cd "$( dirname "$0" )" && pwd )/icon.png" "Set the variable JOXI_API_KEY in $0" "You can find your API key at 'access_token' field in response from joxi chrome plugin login"
 
   exit 1
 
@@ -93,64 +99,32 @@ elif [ -z "$1" ]; then
 
 fi
 
-#Get file to puush and puush it
+# Get file to upload and upload it
 case "$1" in
-	-a)
-		echo "Whole Desktop"
-			fileName=$(generateFileName)
-			gnome-screenshot -f "$fileName"
-			puushFile "$fileName"
-		;;
-
-	-b)
+	-a|--area)
 		echo "Area"
 			fileName=$(generateFileName)
-			gnome-screenshot -a -f "$fileName"
-			puushFile "$fileName"
+			scrot -s -z "$fileName"
+			joxiFile "$fileName"
 		;;
 
-	-c)
+	-f|--full)
+		echo "Whole Desktop"
+			fileName=$(generateFileName)
+			scrot -m -z "$fileName"
+			joxiFile "$fileName"
+		;;
+
+	-w|--window)
 		echo "Window"
 			fileName=$(generateFileName)
-			gnome-screenshot -w -f "$fileName"
-			puushFile "$fileName"
-		;;
-
-	-d)
-		echo "File Upload"
-			fileName=`zenity --file-selection`
-			puushFile "$fileName"
-		;;
-
-	-e)
-		echo "Clipboard Upload"
-			targets=`xclip -selection clipboard -t TARGETS -o`
-			fileName="/tmp/puush-linux-clip"
-
-			for target in $targets
-			do
-				if [[ "$target" =~ "/" ]]; then
-					xclip -selection "clipboard" -t "$target" -o > "$fileName"
-					puushFile "$fileName"
-					exit $?
-				fi
-			done
-
-			# we're here because clipboard content's MIME-type is not really known. Does it even have a type?
-			# well, let's hope for the best and push it as plaintext
-
-			xclip -selection "clipboard" -t "text/plain" -o > "$fileName"
-			puushFile "$fileName"
+			scrot -u -z -b "$fileName"
+			joxiFile "$fileName"
 		;;
 
 	-h|--help)
 		helpText
 		exit 0
 		;;
-		
-	*)
-		echo "Upload $1"
-			puushFile "$1"
-		;;
-		
+
 esac
