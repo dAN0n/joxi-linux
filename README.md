@@ -1,14 +1,14 @@
-Puush in Linux
+Joxi in Linux
 =====================
 
-Takes screenshots and uploads them to puush using the puush API and copies the link to clipboard. Recommended for set up with keyboard shortcuts
-<br>Utilises __gnome-screenshot__ for taking screenshots, __zenity__ for file uploads (both included in Ubuntu).
+Takes screenshots and uploads them to joxi using the joxi API and copies the link to clipboard. Recommended for set up with keyboard shortcuts
+<br>Utilises __scrot__ for taking screenshots (which must be installed separately).
 
 ## Instructions
 - Clone or download the repo
-- In file "puush" add your puush API key to PUUSH_API_KEY
-  - (You can find your API key at http://puush.me/account/settings)
-- Make it executable using __chmod +x puush__
+- In file "joxi" add your joxi API key to JOXI_API_KEY
+  - (You can find your API key at 'access_token' field in response from joxi chrome plugin's login page)
+- Make it executable using __chmod +x joxi__
 - Place this file wherever you want (recommended: /usr/local/bin)
 - Set up keyboard shortcuts within linux
   - (in Ubuntu it's system settings > keyboard > keyboard shortcuts > custom shortcuts)
@@ -17,22 +17,16 @@ Takes screenshots and uploads them to puush using the puush API and copies the l
 
 ### Commands
 ``` bash
-puush -a		# puush desktop
-puush -b		# area puush
-puush -c		# puush window
-puush -d		# file upload
+joxi -a		# area capture
+joxi -f		# capture desktop
+joxi -w		# capture window
 
-puush -h  	  # help
+joxi -h  	  # help
 ```
 
 ## Dependencies
-- gnome-screenshot
-- zenity
+- scrot
 - curl
 - xclip
 - notify-send
 
-
-### Alternatives
-- puush in command line https://github.com/blha303/puush-linux
-- puush using keyboard https://github.com/sgoo/puush-linux
